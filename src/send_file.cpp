@@ -150,7 +150,11 @@ int main(int argc, char* argv[])
         do_error("Couldn't put the file, due to some error.");
         return 1;
     }
-    sni.bootFile(*uri, *put_path);
+    if (!sni.bootFile(*uri, *put_path))
+    {
+        do_error("Couldn't boot the file, due to some error.");
+        return 1;
+    }
 
     if (!config.post_upload_command.empty())
     {

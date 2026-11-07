@@ -257,10 +257,16 @@ CommandResult RunCommand(const std::vector<std::string>& arguments)
         return result;
     }
     result.started = true;
-    ::WaitForSingleObject(process_info.hProcess, INFINITE);
     DWORD exit_code = 0;
-    ::GetExitCodeProcess(process_info.hProcess, &exit_code);
-    result.exit_code = static_cast<int>(exit_code);
+    if (::WaitForSingleObject(process_info.hProcess, INFINITE) != WAIT_OBJECT_0 ||
+        !::GetExitCodeProcess(process_info.hProcess, &exit_code))
+    {
+        result.error = DescribeWindowsError(::GetLastError());
+    }
+    else
+    {
+        result.exit_code = static_cast<int>(exit_code);
+    }
     ::CloseHandle(process_info.hThread);
     ::CloseHandle(process_info.hProcess);
 #else
@@ -320,6 +326,10 @@ void RunPostUploadCommand(const std::vector<std::string>& command_template,
     if (!result.started)
     {
         std::cout << "Couldn't run the post upload command: " << result.error << std::endl;
+    }
+    else if (!result.error.empty())
+    {
+        std::cout << "Couldn't get the result of the post upload command: " << result.error << std::endl;
     }
     else if (result.signaled)
     {

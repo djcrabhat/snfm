@@ -206,14 +206,19 @@ public:
     }
 
 
-    void bootFile(const std::string& uri, const std::filesystem::path& file_path)
+    bool bootFile(const std::string& uri, const std::filesystem::path& file_path)
     {
         BootFileRequest request;
         request.set_uri(uri);
         request.set_path(file_path.generic_string());
         BootFileResponse response;
         grpc::ClientContext context;
-        filesystem_stub_->BootFile(&context, request, &response);
+        grpc::Status status = filesystem_stub_->BootFile(&context, request, &response);
+        if (!status.ok())
+        {
+            std::cerr << status.error_message();
+        }
+        return status.ok();
     }
     bool deleteFile(const std::string& uri, const std::filesystem::path& file_path)
     {

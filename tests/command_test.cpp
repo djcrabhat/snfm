@@ -388,6 +388,27 @@ TEST_F(RunCommandTest, PostUploadCommandExpandsEachArgumentSeparately)
         "--pack=Wild Arms \"2\" & friends", "C:\\My ROMs\\", "", "{  }" }));
 }
 
+TEST_F(RunCommandTest, PostUploadCommandReportsProblems)
+{
+    ::testing::internal::CaptureStdout();
+    RunPostUploadCommand({ ECHO_ARGS_PATH }, {});
+    std::string output = ::testing::internal::GetCapturedStdout();
+    // Just the "Running post upload command" line - nothing to report.
+    EXPECT_EQ(std::count(output.begin(), output.end(), '\n'), 1) << output;
+
+    SetEnv("ECHO_ARGS_EXIT_CODE", "3");
+    ::testing::internal::CaptureStdout();
+    RunPostUploadCommand({ ECHO_ARGS_PATH }, {});
+    output = ::testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("Post upload command exited with code 3"), std::string::npos) << output;
+
+    ::testing::internal::CaptureStdout();
+    RunPostUploadCommand({ "snfm-there-is-no-such-program" }, {});
+    output = ::testing::internal::GetCapturedStdout();
+    EXPECT_TRUE(output.find("Couldn't run the post upload command") != std::string::npos ||
+        output.find("exited with code 127") != std::string::npos) << output;
+}
+
 #ifdef _WIN32
 TEST_F(RunCommandTest, RefusesBatchFiles)
 {
@@ -414,6 +435,25 @@ TEST_F(RunCommandTest, ReportsSignal)
     EXPECT_TRUE(result.started) << result.error;
     EXPECT_TRUE(result.signaled);
     EXPECT_EQ(result.signal, SIGKILL);
+}
+
+TEST_F(RunCommandTest, ReportsFailureToCollectTheResult)
+{
+    // With SIGCHLD ignored the child is reaped automatically, so waitpid fails with ECHILD.
+    struct IgnoreSigchld
+    {
+        void (*previous)(int) = std::signal(SIGCHLD, SIG_IGN);
+        ~IgnoreSigchld() { std::signal(SIGCHLD, previous); }
+    } ignore;
+
+    const CommandResult result = RunCommand({ "true" });
+    EXPECT_TRUE(result.started);
+    EXPECT_FALSE(result.error.empty());
+
+    ::testing::internal::CaptureStdout();
+    RunPostUploadCommand({ "true" }, {});
+    const std::string output = ::testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("Couldn't get the result of the post upload command"), std::string::npos) << output;
 }
 
 TEST_F(RunCommandTest, ShellPositionalArgumentsAreNotInterpreted)

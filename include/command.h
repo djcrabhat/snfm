@@ -35,6 +35,7 @@ struct CommandResult
 {
     // False if the program couldn't be started at all; error says why.
     bool started = false;
+    // Also set if the program started but its result couldn't be collected.
     std::string error;
     int exit_code = 0;
     // Unix only: the process was killed by a signal rather than exiting.
