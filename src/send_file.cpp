@@ -145,7 +145,7 @@ int main(int argc, char* argv[])
             {"destination_path", device_directory},
             {"destination_rom_name", destination_rom_name},
             {"destination_file", put_path->generic_string()},
-            {"source_path", rom_path.string()},
+            {"source_path", std::filesystem::absolute(rom_path).string()},
             {"source_name", rom_path.filename().string()},
             });
     }

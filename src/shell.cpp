@@ -1,5 +1,6 @@
 #include "shell.h"
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -32,16 +33,22 @@ std::string ExpandTemplate(const std::string& template_string,
         const std::string name = template_string.substr(open + 1, close - open - 1);
         auto variable = std::find_if(variables.begin(), variables.end(),
             [&name](const auto& v) { return v.first == name; });
-        if (variable != variables.end())
+        if (variable == variables.end())
         {
-            result.append(variable->second);
+            // Not one of ours - keep the brace as literal text and carry on scanning
+            // just after it, so that placeholders inside something like a shell brace
+            // group ("{ echo {destination_name}; }") still get expanded.
+            const bool looks_like_placeholder = !name.empty() && std::all_of(name.begin(), name.end(),
+                [](unsigned char c) { return std::isalnum(c) || c == '_'; });
+            if (looks_like_placeholder)
+            {
+                std::cout << "Unknown template variable {" << name << "}" << std::endl;
+            }
+            result.push_back('{');
+            pos = open + 1;
+            continue;
         }
-        else
-        {
-            // Unknown placeholder - leave it alone so it's obvious what went wrong.
-            std::cout << "Unknown template variable {" << name << "}" << std::endl;
-            result.append(template_string, open, close - open + 1);
-        }
+        result.append(variable->second);
         pos = close + 1;
     }
     return result;
