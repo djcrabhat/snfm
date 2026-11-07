@@ -95,17 +95,18 @@ if(WIN32)
   target_compile_definitions(snfm_common PUBLIC NOMINMAX)
 endif()
 
+add_library(command "src/command.cpp")
+
 add_library(config "src/config.cpp")
-target_link_libraries(config PRIVATE yaml-cpp)
+target_link_libraries(config PRIVATE yaml-cpp::yaml-cpp command)
 if(WIN32)
     target_link_libraries(config PRIVATE Shlwapi.lib)
 endif(WIN32)
-add_executable(send_file 
-    "src/send_file.cpp" 
-    "src/shell.cpp"
+add_executable(send_file
+    "src/send_file.cpp"
     "src/snfm.cpp"
     "src/config.cpp")
-target_link_libraries(send_file PRIVATE snfm_common config)
+target_link_libraries(send_file PRIVATE snfm_common config command)
 if(WIN32)
   target_sources(send_file PRIVATE "windows/send_file.rc")  
 endif()
@@ -125,6 +126,24 @@ if(WIN32)
     set(CMAKE_MFC_FLAG 2)
     set_target_properties(manage_files PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
+
+enable_testing()
+find_package(GTest CONFIG REQUIRED)
+include(GoogleTest)
+
+# Test helper that records the arguments it was started with.
+add_executable(echo_args "tests/echo_args.cpp")
+
+add_executable(snfm_tests "tests/command_test.cpp" "tests/config_test.cpp")
+target_link_libraries(snfm_tests PRIVATE command config yaml-cpp::yaml-cpp GTest::gtest_main)
+if(WIN32)
+    target_link_libraries(snfm_tests PRIVATE Shell32.lib)
+endif(WIN32)
+target_compile_definitions(snfm_tests PRIVATE
+    ECHO_ARGS_PATH="$<TARGET_FILE:echo_args>"
+    EXAMPLE_CONFIG_PATH="${CMAKE_SOURCE_DIR}/snfm_config_example.yaml")
+add_dependencies(snfm_tests echo_args)
+gtest_discover_tests(snfm_tests DISCOVERY_MODE PRE_TEST)
 
 add_custom_command(
         TARGET send_file POST_BUILD

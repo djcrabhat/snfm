@@ -12,6 +12,7 @@
       "host": true
     },
     "grpc",
+    "gtest",
     "wxwidgets",
     "yaml-cpp"
   ],

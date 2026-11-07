@@ -1,4 +1,5 @@
 #include <config.h>
+#include "command.h"
 #include <iostream>
 #include <string_view>
 
@@ -54,9 +55,25 @@ Config LoadConfig(const std::filesystem::path& path)
     if (default_dir) {
         config.default_rom_directory = default_dir.as<std::string>();
     }
-    auto post_upload_script = y["post_upload_script"];
-    if (post_upload_script) {
-        config.post_upload_script = post_upload_script.as<std::string>();
+    auto post_upload_command = y["post_upload_command"];
+    if (post_upload_command) {
+        if (!post_upload_command.IsSequence()) {
+            throw YAML::Exception(post_upload_command.Mark(),
+                "post_upload_command must be a list - the program, then each of its arguments, "
+                "e.g. [\"program\", \"{destination_name}\"]");
+        }
+        for (auto part_yaml : post_upload_command) {
+            std::string part = part_yaml.as<std::string>();
+            auto unknown = FindUnknownPlaceholders(part, PostUploadVariableNames());
+            if (!unknown.empty()) {
+                throw YAML::Exception(part_yaml.Mark(),
+                    "Unknown variable {" + unknown.front() + "} in post_upload_command");
+            }
+            config.post_upload_command.push_back(std::move(part));
+        }
+        if (config.post_upload_command.empty()) {
+            throw YAML::Exception(post_upload_command.Mark(), "post_upload_command needs at least a program to run");
+        }
     }
     auto r = y["rom_destination_rules"];
 

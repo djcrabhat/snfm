@@ -19,7 +19,8 @@
 
 ### (optional) a command to run once the ROM has been sent to the device and booted.
 ### Handy for things like writing the MSU pack you picked out to a file for a stream overlay.
-### These variables are substituted in before the command is run:
+### It's a list: the program to run, then each of its arguments.  These variables are
+### substituted into each item before the command is run:
 ###   {rule_name}            - the rule that matched, e.g. "alttpr" (empty if nothing matched)
 ###   {destination_name}     - the destination you picked, e.g. "WildArms2" (empty if nothing matched)
 ###   {destination_path}     - the directory on the device, e.g. "/ROMs/_alttpr/_msu1/wa2"
@@ -27,15 +28,20 @@
 ###   {destination_file}     - the full path on the device, e.g. "/ROMs/_alttpr/_msu1/wa2/alttp_msu.sfc"
 ###   {source_path}          - the full path of the ROM on your computer
 ###   {source_name}          - the file name of the ROM on your computer
-### The command is run by your shell (cmd.exe on Windows).  The values are escaped for
-### you, so leave the placeholders unquoted - whatever a ROM name or a destination
-### happens to contain is then passed along as plain text instead of being run as part
-### of the command.  Quote the parts of the command you wrote yourself, as usual.
-### Windows example - the redirect goes first so that a destination name ending in a
-### digit (like "WildArms2") isn't read by cmd.exe as a stream number:
-# post_upload_script: '> "%USERPROFILE%\msu.txt" echo {destination_name}'
-### ...and the same thing on unix:
-# post_upload_script: 'echo {destination_name} > "$HOME/msu.txt"'
+### The program is run directly, not through a shell, so each item arrives as exactly one
+### argument, spaces, quotes and all - there's no escaping to worry about.  An unknown
+### {variable} is an error.  Put quotes around any item that starts with "{", or YAML
+### will read it as something else.
+### Example - hand the destination to your own program:
+# post_upload_command: ["C:/tools/obs-msu.exe", "--pack", "{destination_name}"]
+### Want shell features like redirects?  Pass the values in as arguments instead of
+### pasting them into the script, so they're never run as part of it.
+### Windows - put this in msu.ps1:   Set-Content -Path "$env:USERPROFILE\msu.txt" -Value $args[0]
+# post_upload_command: ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "C:/scripts/msu.ps1", "{destination_name}"]
+### ...and the same thing on unix ("$1" is the first argument after "sh"):
+# post_upload_command: ["sh", "-c", "printf '%s\n' \"$1\" > \"$HOME/msu.txt\"", "sh", "{destination_name}"]
+### Batch files (.bat/.cmd) aren't allowed: Windows always runs them through cmd.exe,
+### which would interpret whatever is in the values.
 
 ### a set of rules to use to put certain ROMs in certain locations, such as your randomizer ROMs, useful for MSU1 users
 rom_destination_rules:

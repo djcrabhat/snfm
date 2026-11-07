@@ -91,6 +91,7 @@ jobs:
       - run: vcpkg/vcpkg fetch ninja
       - run: cmake --preset '${{ matrix.config.preset }}' -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_LINKER=lld
       - run: cmake --build out/build/${{ matrix.config.preset }}
+      - run: ctest --test-dir out/build/${{ matrix.config.preset }} --output-on-failure
       - name: Archive build
         uses: actions/upload-artifact@v5
         with:

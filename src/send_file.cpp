@@ -1,6 +1,6 @@
 #include "snfm.h"
 #include "config.h"
-#include "shell.h"
+#include "command.h"
 #include <algorithm>
 #include <filesystem>
 
@@ -137,16 +137,22 @@ int main(int argc, char* argv[])
     }
     sni.bootFile(*uri, *put_path);
 
-    if (!config.post_upload_script.empty())
+    if (!config.post_upload_command.empty())
     {
-        RunPostUploadScript(config.post_upload_script, {
+        // Local paths go in as UTF-8, which is what RunPostUploadCommand expects.
+        auto to_utf8 = [](const std::filesystem::path& path)
+        {
+            const std::u8string utf8 = path.u8string();
+            return std::string(utf8.begin(), utf8.end());
+        };
+        RunPostUploadCommand(config.post_upload_command, {
             {"rule_name", rule_name},
             {"destination_name", destination_name},
             {"destination_path", device_directory},
             {"destination_rom_name", destination_rom_name},
             {"destination_file", put_path->generic_string()},
-            {"source_path", std::filesystem::absolute(rom_path).string()},
-            {"source_name", rom_path.filename().string()},
+            {"source_path", to_utf8(std::filesystem::absolute(rom_path))},
+            {"source_name", to_utf8(rom_path.filename())},
             });
     }
 
