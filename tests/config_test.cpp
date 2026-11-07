@@ -5,10 +5,13 @@
 
 namespace
 {
-// Writes yaml to a temporary config file and loads it.
+// Writes yaml to a temporary config file and loads it.  The file is named after the test,
+// since ctest runs each test in its own process and may run them in parallel.
 Config LoadConfigFromString(const std::string& yaml)
 {
-    const std::filesystem::path path = std::filesystem::temp_directory_path() / "snfm_config_test.yaml";
+    const auto* test = ::testing::UnitTest::GetInstance()->current_test_info();
+    const std::filesystem::path path = std::filesystem::temp_directory_path() /
+        (std::string("snfm_config_test_") + test->test_suite_name() + "_" + test->name() + ".yaml");
     std::ofstream(path, std::ios::binary) << yaml;
     struct Cleanup
     {
