@@ -4,6 +4,17 @@
 #include <algorithm>
 #include <filesystem>
 
+// On Windows, std::filesystem treats narrow strings as the local code page, not UTF-8.
+std::string ToUtf8(const std::u8string& utf8)
+{
+    return std::string(utf8.begin(), utf8.end());
+}
+
+std::filesystem::path PathFromUtf8(const std::string& utf8)
+{
+    return std::filesystem::path(std::u8string(utf8.begin(), utf8.end()));
+}
+
 void do_error(const std::string& e)
 {
     std::cout << e << std::endl;
@@ -39,6 +50,9 @@ int main(int argc, char* argv[])
 
     std::string device_directory = config.default_rom_directory;
     std::string destination_rom_name = rom_path.filename().string();
+    // The same name as UTF-8, for the post upload command.  destination_rom_name is in the
+    // local code page on Windows when it comes from the ROM's file name.
+    std::string destination_rom_name_utf8 = ToUtf8(rom_path.filename().u8string());
     std::string rule_name;
     std::string destination_name;
 
@@ -99,6 +113,7 @@ int main(int argc, char* argv[])
             device_directory = destination.path;
             if (!destination.rom_name.empty()) {
                 destination_rom_name = destination.rom_name;
+                destination_rom_name_utf8 = destination.rom_name;
             }
         }
     }
@@ -139,20 +154,18 @@ int main(int argc, char* argv[])
 
     if (!config.post_upload_command.empty())
     {
-        // Local paths go in as UTF-8, which is what RunPostUploadCommand expects.
-        auto to_utf8 = [](const std::filesystem::path& path)
-        {
-            const std::u8string utf8 = path.u8string();
-            return std::string(utf8.begin(), utf8.end());
-        };
+        // Everything goes in as UTF-8, which is what RunPostUploadCommand expects.  The values
+        // from the config already are; local paths need converting.
+        const std::filesystem::path destination_file =
+            PathFromUtf8(device_directory) / PathFromUtf8(destination_rom_name_utf8);
         RunPostUploadCommand(config.post_upload_command, {
             {"rule_name", rule_name},
             {"destination_name", destination_name},
             {"destination_path", device_directory},
-            {"destination_rom_name", destination_rom_name},
-            {"destination_file", put_path->generic_string()},
-            {"source_path", to_utf8(std::filesystem::absolute(rom_path))},
-            {"source_name", to_utf8(rom_path.filename())},
+            {"destination_rom_name", destination_rom_name_utf8},
+            {"destination_file", ToUtf8(destination_file.generic_u8string())},
+            {"source_path", ToUtf8(std::filesystem::absolute(rom_path).u8string())},
+            {"source_name", ToUtf8(rom_path.filename().u8string())},
             });
     }
 
